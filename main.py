@@ -1,6 +1,8 @@
 import streamlit as st
 import nii as nii
 from datetime import date 
+import datetime as dt 
+from dateutil.relativedelta import relativedelta 
 import pandas as pd
 
 def run_cf_model(row):
@@ -70,8 +72,7 @@ def main():
         st.session_state.cf = pd.DataFrame(columns=["provider_name",
         "period", "date", "start_balance", "pmt", "monthly_ir_rate", "monthly_ir_earned", "end_balance"
     ])
-
-
+    
     if st.button("➕ Add"):
         st.success("✅ Details submitted!")
         
@@ -97,6 +98,16 @@ def main():
             if pd.isna(row['Months']) else row['Months'],
             axis=1
             )
+        st.session_state.fixedvar_df["Start Date"] = st.session_state.fixedvar_df.apply(
+            lambda row: dt.datetime.today().strftime("%Y-%m") if pd.isna(row['Start Date']) else row['Start Date'],
+                axis=1
+            )
+        # adds 12 months is its regular saver else adds 11 months if the account type is fixed, varibale keeps it consistent with the cashflow 
+        st.session_state.fixedvar_df["End Date"] = st.session_state.fixedvar_df.apply(
+            lambda row: (pd.to_datetime(row["Start Date"]) + relativedelta(
+                months =12 if row["Account Type"] == "Regular Saver" else 11 )).strftime("%Y-%m") if pd.isna(row['End Date']) else row['End Date'],
+                axis=1
+            )
 
     results = []
     for idx, row in st.session_state.fixedvar_df.iterrows():
@@ -107,11 +118,26 @@ def main():
     if results:
         st.session_state.cf = pd.concat([st.session_state.cf, results[-1]], ignore_index=True)        
             
-# Display table
+# Display summary table and clear all button 
     if not st.session_state.fixedvar_df.empty:
-            st.markdown("### 📊 Summary Table")
-            st.dataframe(st.session_state.fixedvar_df, use_container_width=True)
-            st.data_editor(st.session_state.cf, use_container_width=True, hide_index=True, num_rows="dynamic", key="cf_table")
+        with st.container():
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 📊 Summary Table")
+                # """clears all the tables, cf and fixedvar"""
+            with col2:  
+                st.button("Clear All",
+                         key="clear_all", 
+                         on_click=lambda: (
+                             st.session_state.fixedvar_df.drop(st.session_state.fixedvar_df.index, inplace=True),
+                             st.session_state.cf.drop(st.session_state.cf.index, inplace=True)
+                         )
+                         )
+
+# DISPLAY TABLES
+        st.dataframe(st.session_state.fixedvar_df, use_container_width=True,  width=2000)
+        st.data_editor(st.session_state.cf, use_container_width=True, hide_index=True, num_rows="dynamic", key="cf_table")
+# DISPLAY GRAPHS 
 
 
             
