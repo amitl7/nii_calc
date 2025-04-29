@@ -56,16 +56,29 @@ def fixed_rate(pv,ir_rate,start_date =None , end_date = None, period = None):
         "monthly_ir_rate": round(monthly_ir_rate,4),
         "monthly_ir_earned": round(monthly_ir_earned,2)
         })
-    cf["end_balance"] = cf.monthly_ir_earned + cf["end_balance"].shift(1).fillna(cf.start_balance[0]) 
+    cf["end_balance"] = 0.0 
+
+    for i in cf.index:
+        if i == 0:
+            cf.at[i,"end_balance"] = cf.at[i,"start_balance"] + cf.at[i,"monthly_ir_earned"]
+        else:
+            cf.at[i,"start_balance"] = cf.at[i-1,"end_balance"]
+            cf["end_balance"] = cf.monthly_ir_earned + cf["start_balance"]
 
     return cf 
 
 def regular_saver(pmt,ir_rate,start_date =  None, end_date = None, period = None):
 
+    # if not period:
+    #     period = period_converter(start_date, end_date)
+
+    # period = period + 2
     if period is None or period == 0:
-        period = period_converter(start_date,end_date) +2
+        period = period_converter(start_date, end_date) + 2
         if period == 0:
             period = 1
+    else:
+        period = period + 1
 
     pmt = pmt
     monthly_ir_rate = (1+ (ir_rate/100))**(1/12) -1

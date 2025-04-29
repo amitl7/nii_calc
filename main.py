@@ -13,7 +13,13 @@ def run_cf_model(row):
             period      = row['Months']
         )
     else:
-        return nii.regular_saver(row['Start Balance'], row['Interest Rate'], row['Start Date'], row['End Date'])
+        return nii.regular_saver(
+            pmt         = row['Monthly Payment Amount'], 
+            ir_rate     = row['Interest Rate'], 
+            start_date  = row['Start Date'], 
+            end_date    = row['End Date'],
+            period      = row['Months']
+            )
 
 
 def main():
@@ -61,7 +67,7 @@ def main():
     ])
     
     if "cf" not in st.session_state:
-        st.session_state.cf = pd.DataFrame(columns=[
+        st.session_state.cf = pd.DataFrame(columns=["provider_name",
         "period", "date", "start_balance", "pmt", "monthly_ir_rate", "monthly_ir_earned", "end_balance"
     ])
 
@@ -94,9 +100,12 @@ def main():
 
     results = []
     for idx, row in st.session_state.fixedvar_df.iterrows():
-        results.append(run_cf_model(row))
+        cf_reuslt = run_cf_model(row)
+        cf_reuslt["provider_name"] = row["Provider Name"]
+        results.append(cf_reuslt)
 
-    st.session_state.cf = pd.concat([st.session_state.cf, results[-1]], ignore_index=True)        
+    if results:
+        st.session_state.cf = pd.concat([st.session_state.cf, results[-1]], ignore_index=True)        
             
 # Display table
     if not st.session_state.fixedvar_df.empty:
