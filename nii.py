@@ -30,20 +30,29 @@ def period_converter(start_date, end_date):
     months = (end.year - start.year) * 12 + (end.month - start.month)
     return months
 
-def fixed_rate(pv,ir_rate,start_date, end_date):
+def generate_starting_dates(start_date, period):
+    actual_start = start_date if start_date is not None else dt.datetime.today()
+    return pd.date_range(start=actual_start, periods=period, freq='MS').strftime("%Y-%m")
+
+
+def fixed_rate(pv,ir_rate,start_date =None , end_date = None, period = None):
     
-    period = period_converter(start_date,end_date)
+    if period is None or period == 0:
+        period = period_converter(start_date,end_date)
+        if period == 0:
+            period = 1
 
     fv = pv *(1 + (ir_rate/100))** (period / 12)
     total_ir_earned = (fv-pv)
     monthly_ir_earned = total_ir_earned / period
     monthly_ir_rate = monthly_ir_earned / pv 
+# if we have the period and not the start date then we make up the start date as today
 
     cf = pd.DataFrame({
-        "period": range(1, period + 1),
-        "date": pd.date_range(start=start_date, periods=period, freq='MS').strftime("%Y-%m"),
-        "start_balance": round(pv,2),
-        "pmt": 0,
+        "period"        : range(1, period + 1),
+        "date"          : generate_starting_dates(start_date, period),
+        "start_balance" : round(pv,2),
+        "pmt"           : 0,
         "monthly_ir_rate": round(monthly_ir_rate,4),
         "monthly_ir_earned": round(monthly_ir_earned,2)
         })
@@ -51,19 +60,24 @@ def fixed_rate(pv,ir_rate,start_date, end_date):
 
     return cf 
 
-def regular_saver(pmt,start_date, end_date,ir_rate):
+def regular_saver(pmt,ir_rate,start_date =  None, end_date = None, period = None):
+
+    if period is None or period == 0:
+        period = period_converter(start_date,end_date) +2
+        if period == 0:
+            period = 1
+
     pmt = pmt
-    period = period_converter(start_date, end_date) + 2
     monthly_ir_rate = (1+ (ir_rate/100))**(1/12) -1
 
     cf = pd.DataFrame({
-    "period": range(1, period + 1),
-    "date": pd.date_range(start=start_date, periods=period, freq='MS').strftime("%Y-%m"),
-    "start_balance": [0.0] * period,
-    "pmt": [pmt] * (period - 1) + [0],  # last month is interest-only
-    "monthly_ir_rate": [round(monthly_ir_rate, 4)] * period,
-    "monthly_ir_earned": [0.0] * period,
-    "end_balance": [0.0] * period
+    "period"            : range(1, period + 1),
+    "date"              : generate_starting_dates(start_date, period),
+    "start_balance"     : [0.0] * period, 
+    "pmt"               : [pmt] * (period - 1) + [0],  # last month is interest-only
+    "monthly_ir_rate"   : [round(monthly_ir_rate, 4)] * period,
+    "monthly_ir_earned" : [0.0] * period,
+    "end_balance"       : [0.0] * period
 })
     
     for i in cf.index:

@@ -3,6 +3,17 @@ import nii as nii
 from datetime import date 
 import pandas as pd
 
+def run_cf_model(row):
+    if row['Account Type'] in('Fixed', 'Variable'):
+        return nii.fixed_rate(
+            pv          = row['Initial Investment Amount'],
+            ir_rate     = row['Interest Rate'],
+            start_date  = row['Start Date'],
+            end_date    = row['End Date'],
+            period      = row['Months']
+        )
+    else:
+        return nii.regular_saver(row['Start Balance'], row['Interest Rate'], row['Start Date'], row['End Date'])
 
 
 def main():
@@ -41,12 +52,17 @@ def main():
         months = st.number_input("📆 Number of Months", value=12, step=1)
 
     # Submission
-   
+#    initiate tables to use. 
     if "fixedvar_df" not in st.session_state:
         st.session_state.fixedvar_df = pd.DataFrame(columns=[
         "Provider Name", "Account Type", "Interest Rate",
         "Start Date", "End Date", "Months",
         "Monthly Payment Amount", "Initial Investment Amount"
+    ])
+    
+    if "cf" not in st.session_state:
+        st.session_state.cf = pd.DataFrame(columns=[
+        "period", "date", "start_balance", "pmt", "monthly_ir_rate", "monthly_ir_earned", "end_balance"
     ])
 
 
@@ -75,12 +91,18 @@ def main():
             if pd.isna(row['Months']) else row['Months'],
             axis=1
             )
-        
+
+    results = []
+    for idx, row in st.session_state.fixedvar_df.iterrows():
+        results.append(run_cf_model(row))
+
+    st.session_state.cf = pd.concat([st.session_state.cf, results[-1]], ignore_index=True)        
             
 # Display table
     if not st.session_state.fixedvar_df.empty:
             st.markdown("### 📊 Summary Table")
             st.dataframe(st.session_state.fixedvar_df, use_container_width=True)
+            st.data_editor(st.session_state.cf, use_container_width=True, hide_index=True, num_rows="dynamic", key="cf_table")
 
 
             
