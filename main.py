@@ -65,7 +65,7 @@ def main():
         st.session_state.fixedvar_df = pd.DataFrame(columns=[
         "Provider Name", "Account Type", "Interest Rate",
         "Start Date", "End Date", "Months",
-        "Monthly Payment Amount", "Initial Investment Amount"
+        "Monthly Payment Amount", "Initial Investment Amount", "Ending Value"
     ])
     
     if "cf" not in st.session_state:
@@ -108,16 +108,22 @@ def main():
                 months =12 if row["Account Type"] == "Regular Saver" else 11 )).strftime("%Y-%m") if pd.isna(row['End Date']) else row['End Date'],
                 axis=1
             )
+        
+        
 
-    results = []
-    for idx, row in st.session_state.fixedvar_df.iterrows():
-        cf_reuslt = run_cf_model(row)
-        cf_reuslt["provider_name"] = row["Provider Name"]
-        results.append(cf_reuslt)
+        results = []
+        for idx, row in st.session_state.fixedvar_df.iterrows():
+            cf_reuslt = run_cf_model(row)
+            cf_reuslt["provider_name"] = row["Provider Name"]
+            results.append(cf_reuslt)
 
-    if results:
-        st.session_state.cf = pd.concat([st.session_state.cf, results[-1]], ignore_index=True)        
-            
+        if results:
+            st.session_state.cf = pd.concat([st.session_state.cf, results[-1]], ignore_index=True)  
+      
+
+        ending_values = st.session_state.cf.groupby("provider_name").last()["end_balance"]
+        st.session_state.fixedvar_df["Ending Value"] = st.session_state.fixedvar_df["Provider Name"].map(ending_values)
+    
 # Display summary table and clear all button 
     if not st.session_state.fixedvar_df.empty:
         with st.container():
