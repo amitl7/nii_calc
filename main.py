@@ -150,18 +150,19 @@ def main():
         col1,col2,col3, col4 = st.columns(4)
         with col1:            
             st.metric(label="Total Amount Invested", 
-                      value=st.session_state.cf["pmt"].sum() + st.session_state.fixedvar_df["Initial Investment Amount"].sum(),
+                      value=int(st.session_state.cf["pmt"].sum() + st.session_state.fixedvar_df["Initial Investment Amount"].sum()),
                       border =True)
         with col2:    
             st.metric(label="Total Ending Value", 
-                      value=st.session_state.fixedvar_df["Ending Value"].sum(),
+                      value= int(st.session_state.fixedvar_df["Ending Value"].sum()),
                       border =True)
         with col3:
-            st.metric(label="Total Interest Earned ", 
-                      value=st.session_state.cf["monthly_ir_earned"].sum(),
+            st.metric(label="Total Interest Earned at Maturity ", 
+                      value= int(st.session_state.cf["monthly_ir_earned"].sum()),
                       border =True)
         with col4:
-            st.metric(label="Total Effective Interest Rate", 
+
+            st.metric(label="Total Effective Interest Rate ", 
                       value = f"{round((st.session_state.cf['monthly_ir_earned'].sum() / st.session_state.fixedvar_df['Ending Value'].sum()) * 100, 2)}%",
                       border = True)
 
