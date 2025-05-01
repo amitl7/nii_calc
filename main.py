@@ -1,9 +1,11 @@
 import streamlit as st
 import nii as nii
+import graphs as graphs
 from datetime import date 
 import datetime as dt 
 from dateutil.relativedelta import relativedelta 
 import pandas as pd
+import altair as alt
 
 def run_cf_model(row):
     if row['Account Type'] in('Fixed', 'Variable'):
@@ -25,8 +27,9 @@ def run_cf_model(row):
 
 
 def main():
+    
 
-    st.set_page_config(page_title="Savings Calculator", layout="centered")
+    st.set_page_config(page_title="Savings Calculator", layout="wide")
 
     st.title("💰 Savings Calculator")
 
@@ -105,7 +108,7 @@ def main():
         # adds 12 months is its regular saver else adds 11 months if the account type is fixed, varibale keeps it consistent with the cashflow 
         st.session_state.fixedvar_df["End Date"] = st.session_state.fixedvar_df.apply(
             lambda row: (pd.to_datetime(row["Start Date"]) + relativedelta(
-                months =12 if row["Account Type"] == "Regular Saver" else 11 )).strftime("%Y-%m") if pd.isna(row['End Date']) else row['End Date'],
+                months = 12 if row["Account Type"] == "Regular Saver" else row["Months"]-1 )).strftime("%Y-%m") if pd.isna(row['End Date']) else row['End Date'],
                 axis=1
             )
         
@@ -143,9 +146,35 @@ def main():
 # DISPLAY TABLES
         st.dataframe(st.session_state.fixedvar_df, use_container_width=True,  width=2000)
         st.data_editor(st.session_state.cf, use_container_width=True, hide_index=True, num_rows="dynamic", key="cf_table")
+# KEY HEADLINE NUMBERS 
+        col1,col2,col3, col4 = st.columns(4)
+        with col1:            
+            st.metric(label="Total Amount Invested", 
+                      value=st.session_state.cf["pmt"].sum() + st.session_state.fixedvar_df["Initial Investment Amount"].sum(),
+                      border =True)
+        with col2:    
+            st.metric(label="Total Ending Value", 
+                      value=st.session_state.fixedvar_df["Ending Value"].sum(),
+                      border =True)
+        with col3:
+            st.metric(label="Total Interest Earned ", 
+                      value=st.session_state.cf["monthly_ir_earned"].sum(),
+                      border =True)
+        with col4:
+            st.metric(label="Total Effective Interest Rate", 
+                      value = f"{round((st.session_state.cf['monthly_ir_earned'].sum() / st.session_state.fixedvar_df['Ending Value'].sum()) * 100, 2)}%",
+                      border = True)
+
+
 # DISPLAY GRAPHS 
+    st.markdown("### 📈 Graphs")
+
+    st.altair_chart(graphs.bar(st.session_state.fixedvar_df.copy()), use_container_width=True)
+
 
 
             
 if __name__ == "__main__":
     main()
+    
+    
