@@ -166,7 +166,7 @@ def main():
                       border = True)
 
 
-# DISPLAY GRAPHS 
+# DISPLAY GRAPHS  
     st.markdown("### 📈 Graphs")
 
     st.altair_chart(graphs.bar(st.session_state.fixedvar_df.copy()), use_container_width=True)
