@@ -107,11 +107,57 @@ def regular_saver(pmt,ir_rate,start_date =  None, end_date = None, period = None
 
     return cf 
 
+def run_cf_model(row):
+    if row['Account Type'] in('Fixed', 'Variable'):
+        return fixed_rate(
+            pv          = row['Initial Investment Amount'],
+            ir_rate     = row['Interest Rate'],
+            start_date  = row['Start Date'],
+            end_date    = row['End Date'],
+            period      = row['Months']
+        )
+    else:
+        return regular_saver(
+            pmt         = row['Monthly Payment Amount'], 
+            ir_rate     = row['Interest Rate'], 
+            start_date  = row['Start Date'], 
+            end_date    = row['End Date'],
+            period      = row['Months']
+            )
 
 
+def get_monthly_rate(annual_rate, months):
+    return round( (annual_rate / 100) / (12 * (months/12)),4)
 
-def variable_rate():
-    # just assume that the rate stays the same as fixed. 
-    pass
+def get_rate_shifts( annual_rate, rate_shift = None ):
+    if rate_shift is None:
+        rate_shift = (0.25)
+
+    upper_rates = [annual_rate + i * rate_shift for i in range (1,4) ]
+    lower_rates = [annual_rate - i * rate_shift for i in range (1,4) ]
+
+    return sorted([*lower_rates,annual_rate,*upper_rates ])
+
+# pass the fixed var df here and take the interest rate out. 
+def get_summarytable_shifts(df): 
+    summary_table_with_shifts = []
+
+    for index, row in df.iterrows():          
+        interest_rate = row['Interest Rate']
+        shifted_rates = get_rate_shifts(annual_rate = interest_rate)
+        
+        for rate in shifted_rates:
+            new_row = row.copy()
+            new_row['Interest Rate'] = rate
+            new_row['Provider Name'] = row['Provider Name']
+            summary_table_with_shifts.append(new_row)
+
+    return pd.DataFrame(summary_table_with_shifts).drop_duplicates()
+
+
+    
+        
+    
+    
 
 
