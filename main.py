@@ -7,6 +7,11 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import altair as alt
 
+# TODO:
+# fixed the issue with tsummary table and cahsflow ending value. need to do the same for the shifted cashflow.
+
+
+
 def create_cashflows(df): 
     results = []
     # this is where cashflow table cf is created. 
@@ -14,6 +19,7 @@ def create_cashflows(df):
         cf_reuslt = nii.run_cf_model(row)
         cf_reuslt["provider_name"] = row["Provider Name"]
         results.append(cf_reuslt)
+        
     return results
 
 
@@ -23,7 +29,7 @@ def main():
 
     st.set_page_config(page_title="Savings Calculator", layout="wide")
 
-    st.title("💰 Savings Calculator")
+    # st.title("💰 Savings Calculator")
 
     # Input Section
     with st.container():
@@ -45,6 +51,9 @@ def main():
         pmt = st.number_input("💵 Monthly Payment Amount", value=250, step=10)
 
     # Time Input Section
+    start_date = None
+    end_date = None
+    months = None
     if time_type == "Start and End date":
         col1, col2 = st.columns(2)
         with col1:
@@ -63,18 +72,23 @@ def main():
         "Monthly Payment Amount", "Initial Investment Amount", "Ending Value"
     ])
     
+    if "summary_table_shifted_rates" not in st.session_state:
+        st.session_state.summary_table_shifted_rates = pd.DataFrame(columns=[
+        "Provider Name", "Account Type", "Interest Rate",
+        "Start Date", "End Date", "Months",
+        "Monthly Payment Amount", "Initial Investment Amount", "Ending Value"
+    ])
+    
     if "cf" not in st.session_state:
         st.session_state.cf = pd.DataFrame(columns=["provider_name",
-        "period", "date", "start_balance", "pmt", "monthly_ir_rate", "monthly_ir_earned", "end_balance"
+        "period", "date", "start_balance","yearly_ir", "pmt", "monthly_ir_rate", "monthly_ir_earned", "end_balance"
     ])
-    # TODO: add a summary for the shifted cashflow and display it.. there is issue with the naming for the shifted cashflow 
-    
+  
     if "shifted_cf" not in st.session_state:
         st.session_state.shifted_cf = pd.DataFrame(columns=["provider_name",
         "period", "date", "start_balance", "pmt", "monthly_ir_rate", "monthly_ir_earned", "end_balance"
     ])
     
-
 
     if st.button("➕ Add"):
         st.success("✅ Details submitted!")
@@ -82,15 +96,19 @@ def main():
         fixedvar_dic = {
             "Provider Name": provider_name,
             "Account Type": account_type,
-            "Interest Rate": ir_rate,
+            "Interest Rate": round(ir_rate,2),
             "Start Date": start_date if time_type == "Start and End date" else None,
             "End Date": end_date if time_type == "Start and End date" else None,
             "Months": months if time_type == "Enter Months" else None,
             "Monthly Payment Amount": pmt if account_type == "Regular Saver" else None,
             "Initial Investment Amount": pv if account_type in ["Fixed", "Variable"] else None,
         }
+        # **************************** calcluate the fixedvar df here ****************************
         # Add the new row to the DataFrame
-        st.session_state.fixedvar_df.loc[len(st.session_state.fixedvar_df)] = fixedvar_dic
+        st.session_state.fixedvar_df = pd.concat(
+            [st.session_state.fixedvar_df, pd.DataFrame([fixedvar_dic])],
+            ignore_index=True
+        )
         # clean up the dataframe
         st.session_state.fixedvar_df['Provider Name'] = st.session_state.fixedvar_df.apply(
             lambda row: f"Savings_{row.name}" if pd.isna(row['Provider Name']) or row['Provider Name'] == "" else row['Provider Name'],
@@ -111,12 +129,21 @@ def main():
                 months = 12 if row["Account Type"] == "Regular Saver" else row["Months"]-1 )).strftime("%Y-%m") if pd.isna(row['End Date']) else row['End Date'],
                 axis=1
             )
+        
+        
+
 
 # initiate in creating the cashflow by calling the create_cashflow function which get from nii_cf model.
         cashflow_results = create_cashflows(st.session_state.fixedvar_df)
         summary_table_shifted_rates = nii.get_summarytable_shifts(st.session_state.fixedvar_df)
 
-        shifted_cashflow_results = create_cashflows(summary_table_shifted_rates)
+        if not summary_table_shifted_rates.empty:
+            st.session_state.summary_table_shifted_rates = pd.concat(
+                [st.session_state.summary_table_shifted_rates, summary_table_shifted_rates], ignore_index=True
+            )
+
+
+        shifted_cashflow_results = create_cashflows(st.session_state.summary_table_shifted_rates)
 # if the cashflow and shifted cashflow exist then bring them into session state.. this session. 
         if cashflow_results:
             st.session_state.cf = pd.concat([st.session_state.cf, cashflow_results[-1]], ignore_index=True)  
@@ -124,12 +151,15 @@ def main():
         if shifted_cashflow_results:
             st.session_state.shifted_cf = pd.concat([st.session_state.shifted_cf, shifted_cashflow_results[-1]], ignore_index=True)  
       
-#  sort out the ending values TODO: recreate this so tht we are not repeating. 
-        ending_values = st.session_state.cf.groupby("provider_name").last()["end_balance"]
-        st.session_state.fixedvar_df["Ending Value"] = st.session_state.fixedvar_df["Provider Name"].map(ending_values)
 
-        ending_values = st.session_state.shifted_cf.groupby("provider_name").last()["end_balance"]
-        st.session_state.fixedvar_df["Ending Value"] = st.session_state.fixedvar_df["Provider Name"].map(ending_values)
+        st.session_state.cf["yearly_ir"] = st.session_state.cf["yearly_ir"].round(2)
+        st.session_state.fixedvar_df["Interest Rate"] = st.session_state.fixedvar_df["Interest Rate"].round(2)
+
+        st.session_state.cf["provider_key"] = st.session_state.cf["provider_name"].astype(str) + "_" + st.session_state.cf["yearly_ir"].astype(str)
+        st.session_state.fixedvar_df["provider_key"] = st.session_state.fixedvar_df["Provider Name"].astype(str) + "_" + st.session_state.fixedvar_df["Interest Rate"].astype(str)
+
+        ending_values = st.session_state.cf.groupby("provider_key").last()["end_balance"]
+        st.session_state.fixedvar_df["Ending Value"] = st.session_state.fixedvar_df["provider_key"].map(ending_values)
     
 # Display summary table and clear all button 
     if not st.session_state.fixedvar_df.empty:
@@ -139,24 +169,30 @@ def main():
                 st.markdown("### 📊 Summary Table")
                 # """clears all the tables, cf and fixedvar"""
             with col2:  
+                def clear_all_tables():
+                    st.session_state.fixedvar_df.drop(st.session_state.fixedvar_df.index, inplace=True)
+                    st.session_state.cf.drop(st.session_state.cf.index, inplace=True)
+                    st.session_state.shifted_cf.drop(st.session_state.shifted_cf.index, inplace=True)
+                    st.session_state.summary_table_shifted_rates.drop(st.session_state.summary_table_shifted_rates.index, inplace=True)
+
                 st.button("Clear All",
                          key="clear_all", 
-                         on_click=lambda: (
-                             st.session_state.fixedvar_df.drop(st.session_state.fixedvar_df.index, inplace=True),
-                             st.session_state.cf.drop(st.session_state.cf.index, inplace=True), 
-                             st.session_state.shifted_cf.drop(st.session_state.cf.index, inplace=True) 
-                             )
+                         on_click=clear_all_tables
                          )
-# create the new shifted rates and create a new cashflow for the shfted rates 
-        # summary_table_shifted_rates = nii.get_summarytable_shifts(st.session_state.fixedvar_df)
 
 #  ----------------------- DISPLAY -------------------------- 
 # DISPLAY TABLES
-        st.data_editor(st.session_state.fixedvar_df, use_container_width=True, hide_index=True, num_rows="dynamic")
-        st.data_editor(st.session_state.cf, use_container_width=True, hide_index=True, num_rows="dynamic", key="cf_table")
+        st.markdown("summary table of all investments")
+        st.data_editor(st.session_state.fixedvar_df.drop(columns=["provider_key"]), use_container_width=True, hide_index=True, num_rows="dynamic") 
+
+        st.markdown("cashflow table")      
+        st.data_editor(st.session_state.cf.drop(columns=["provider_key"]), use_container_width=True, hide_index=True, num_rows="dynamic", key="cf_table")
+
+        st.markdown("shifted rates summary")
+        st.data_editor(st.session_state.summary_table_shifted_rates, use_container_width=True, hide_index=True, num_rows="dynamic", key="summarytable_table")
+
+        st.markdown("shifted cf summary") 
         st.data_editor(st.session_state.shifted_cf, use_container_width=True, hide_index=True, num_rows="dynamic", key="shifted_cf_table")
-        
-        
         
 
 # KEY HEADLINE NUMBERS 
@@ -183,7 +219,6 @@ def main():
     st.markdown("### 📈 Graphs")
 
     st.altair_chart(graphs.bar(st.session_state.fixedvar_df.copy()), use_container_width=True)
-
 # DISPLAY NII GRID. 
 
 

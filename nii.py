@@ -6,11 +6,11 @@ import numpy as np
 
 # define the parameters
 # date: 
-start_date = "2025-01-01"
-end_date = "2025-12-31"
-ir_rate = 5
-pv = 5000
-pmt = 250
+# start_date = "2025-01-01"
+# end_date = "2025-12-31"
+# ir_rate = 5
+# pv = 5000
+# pmt = 250
 
 def date_convert(date_input):
     if isinstance(date_input, str):
@@ -52,6 +52,7 @@ def fixed_rate(pv,ir_rate,start_date =None , end_date = None, period = None):
         "period"        : range(1, period + 1),
         "date"          : generate_starting_dates(start_date, period),
         "start_balance" : round(pv,2),
+        "yearly_ir"     : ir_rate,
         "pmt"           : 0,
         "monthly_ir_rate": round(monthly_ir_rate,4),
         "monthly_ir_earned": round(monthly_ir_earned,2)
@@ -65,7 +66,7 @@ def fixed_rate(pv,ir_rate,start_date =None , end_date = None, period = None):
             cf.at[i,"start_balance"] = cf.at[i-1,"end_balance"]
             cf["end_balance"] = cf.monthly_ir_earned + cf["start_balance"]
 
-    return cf 
+    return cf
 
 def regular_saver(pmt,ir_rate,start_date =  None, end_date = None, period = None):
 
@@ -81,12 +82,14 @@ def regular_saver(pmt,ir_rate,start_date =  None, end_date = None, period = None
         period = period + 1
 
     pmt = pmt
-    monthly_ir_rate = (1+ (ir_rate/100))**(1/12) -1
+    # monthly_ir_rate = (1+ (ir_rate/100))**(1/12) -1
+    monthly_ir_rate = (ir_rate / 100) / 12
 
     cf = pd.DataFrame({
     "period"            : range(1, period + 1),
     "date"              : generate_starting_dates(start_date, period),
-    "start_balance"     : [0.0] * period, 
+    "start_balance"     : [0.0] * period,
+    "yearly_ir"         : ir_rate, 
     "pmt"               : [pmt] * (period - 1) + [0],  # last month is interest-only
     "monthly_ir_rate"   : [round(monthly_ir_rate, 4)] * period,
     "monthly_ir_earned" : [0.0] * period,
