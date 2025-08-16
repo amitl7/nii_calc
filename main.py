@@ -8,7 +8,9 @@ import pandas as pd
 import altair as alt
 
 # TODO:
-# fixed the issue with tsummary table and cahsflow ending value. need to do the same for the shifted cashflow.
+# create a summary table in the nii.py file using the cashflows. not seperately. 
+# in the sessioon state we should only be appending new values. 
+# 
 
 
 
@@ -21,8 +23,6 @@ def create_cashflows(df):
         results.append(cf_reuslt)
         
     return results
-
-
 
 def main():
     
@@ -45,6 +45,7 @@ def main():
     # Investment Section
     st.markdown("### 💸 Investment Details")
 
+    pmt = None  # Ensure pmt is always defined
     if account_type in ["Fixed", "Variable"]:
         pv = st.number_input("💰 Initial Investment Amount", value=5000, step=100)
     else:
@@ -54,6 +55,7 @@ def main():
     start_date = None
     end_date = None
     months = None
+    pv = None
     if time_type == "Start and End date":
         col1, col2 = st.columns(2)
         with col1:
@@ -105,6 +107,7 @@ def main():
         }
         # **************************** calcluate the fixedvar df here ****************************
         # Add the new row to the DataFrame
+        #**************************** pas this into a new function that does the below code
         st.session_state.fixedvar_df = pd.concat(
             [st.session_state.fixedvar_df, pd.DataFrame([fixedvar_dic])],
             ignore_index=True
@@ -129,9 +132,6 @@ def main():
                 months = 12 if row["Account Type"] == "Regular Saver" else row["Months"]-1 )).strftime("%Y-%m") if pd.isna(row['End Date']) else row['End Date'],
                 axis=1
             )
-        
-        
-
 
 # initiate in creating the cashflow by calling the create_cashflow function which get from nii_cf model.
         cashflow_results = create_cashflows(st.session_state.fixedvar_df)
@@ -144,6 +144,7 @@ def main():
 
 
         shifted_cashflow_results = create_cashflows(st.session_state.summary_table_shifted_rates)
+        
 # if the cashflow and shifted cashflow exist then bring them into session state.. this session. 
         if cashflow_results:
             st.session_state.cf = pd.concat([st.session_state.cf, cashflow_results[-1]], ignore_index=True)  

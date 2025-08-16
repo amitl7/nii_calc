@@ -108,6 +108,18 @@ def regular_saver(pmt,ir_rate,start_date =  None, end_date = None, period = None
         cf.at[i, 'monthly_ir_earned'] = round(cf.at[i,'start_balance'] * monthly_ir_rate,2)
         cf.at[i, 'end_balance'] = cf.at[i, 'start_balance'] + cf.at[i, 'pmt'] + cf.at[i, 'monthly_ir_earned']
 
+    # also create the summery table values 
+    summary_reg_saver = {
+        "account_type"      : "Regular Saver",
+        "provider_name"     : None,
+        "start_balance"     : cf['start_balance'],
+        "annual_ir"         : cf['yearly_ir'],
+        "pmt"               : cf['pmt'],
+        "monthly_ir_rate"   : cf['monthly_ir_rate'],
+        "monthly_ir_earned" : cf['monthly_ir_earned'],
+        "end_balance"       : cf['end_balance']
+    }
+
     return cf 
 
 def run_cf_model(row):
@@ -143,11 +155,13 @@ def get_rate_shifts( annual_rate, rate_shift = None ):
 
 # pass the fixed var df here and take the interest rate out. 
 def get_summarytable_shifts(df): 
+    # move all the clean up of dataframes here. none should be made in the session state. 
     summary_table_with_shifts = []
 
     for index, row in df.iterrows():          
         interest_rate = row['Interest Rate']
         shifted_rates = get_rate_shifts(annual_rate = interest_rate)
+        row['Ending Value'] = None
         
         for rate in shifted_rates:
             new_row = row.copy()
